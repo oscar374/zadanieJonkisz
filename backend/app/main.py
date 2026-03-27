@@ -38,7 +38,7 @@ def init_db():
             surname TEXT NOT NULL,
             email TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
-            isTeacher BOOLEAN DEFAULT FALSE
+            is_teacher BOOLEAN DEFAULT FALSE
         );
     """)
     cur.execute("""
@@ -85,9 +85,12 @@ def user_register(body: RegisterRequest):
         conn.close()
         raise HTTPException(status_code=409, detail="User already exists")
 
+    print("is teacher: ");
+    print(body.isTeacher);
+
     password_hash = bcrypt.hashpw(body.password.encode(), bcrypt.gensalt()).decode()
     cur.execute(
-        "INSERT INTO users (name, surname, email, password_hash, isTeacher) VALUES (%s, %s, %s, %s, %s)",
+        "INSERT INTO users (name, surname, email, password_hash, is_teacher) VALUES (%s, %s, %s, %s, %s)",
         (body.name, body.surname, body.email, password_hash, body.isTeacher)
     )
     conn.commit()
@@ -165,7 +168,7 @@ def user_auth(
             raise HTTPException(status_code=401, detail="Invalid session")
 
         cur.execute(
-            "SELECT id, name, surname, email, isTeacher FROM users WHERE id = %s",
+            "SELECT id, name, surname, email, is_teacher FROM users WHERE id = %s",
             (int(userId),)
         )
         user = cur.fetchone()
@@ -182,7 +185,29 @@ def user_auth(
     finally:
         cur.close()
         conn.close()
-
+    
 
 #-------------------------------------------- login and register
+
+
+
+# @app.get("/debug/getAllUsers")
+# def get_all_users():
+#     conn = get_db()
+#     try:
+#         cur = conn.cursor()
+#         cur.execute("SELECT name, surname, isTeacher FROM users")
+#         users = cur.fetchall()
+        
+#         return {
+#             "status": "ok",
+#             "count": len(users),
+#             "users": users
+#         }
+#     except Exception as e:
+#         print(f"Error fetching users: {e}")
+#         raise HTTPException(status_code=500, detail="Internal Server Error")
+#     finally:
+#         cur.close()
+#         conn.close()
 

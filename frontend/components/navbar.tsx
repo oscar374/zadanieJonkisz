@@ -8,9 +8,36 @@ export default function Navbar(){
 
     return (
         <>
-            <nav className='fixed w-screen h-40 flex justify-center align-center'>
-                <Link href={"/register"}></Link>
-                <Link href={"/login"}></Link>
+            <nav className='fixed h-screen w-1/12 flex justify-center align-center bg-gray-900 flex-col' >
+                {!isAuthenticated && !loading && (
+                    <>
+                        <Link className='p-2 hover:text-gray-500' href={"/register"}>REGISTER</Link>
+                        <Link className='p-2 hover:text-gray-500' href={"/login"}>LOGIN</Link>
+                    </>
+                )}
+
+                {isAuthenticated && !loading && (
+                    <>  
+                        {user?.is_teacher && (
+                            <>
+                                <h1 className='text-2xl p-2'>Panel nauczyciela</h1>
+                                <Link className='p-2 hover:text-gray-500' href={"/login"}>KLASY</Link>
+                                <Link className='p-2 hover:text-gray-500' href={"/login"}>UTWÓRZ ZADANIE</Link>
+                            </>
+                        )}
+
+                        {!user?.is_teacher && (
+                            <>
+                                <h1 className='text-2xl p-2'>Panel ucznia</h1>
+                                <Link className='p-2 hover:text-gray-500' href={"/login"}>ZADANIA</Link>
+                                <Link className='p-2 hover:text-gray-500' href={"/login"}>NAUCZYCIELE</Link>
+                            </>
+                        )}
+
+                        <Link className='p-2 hover:text-gray-500' href={"/login"}>LOGOUT</Link>
+                    </>
+                )}
+
             </nav>
         </>
     )

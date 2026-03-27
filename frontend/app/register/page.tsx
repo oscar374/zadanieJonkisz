@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Navbar from "@/components/navbar";
 
 export default function register(){
 
@@ -50,6 +51,7 @@ export default function register(){
     
     return (
         <>
+            <Navbar/>
             <div 
                 className="w-full h-screen flex justify-center items-center"
                 style={{

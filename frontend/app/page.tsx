@@ -2,6 +2,7 @@
 'use client';
 
 import { useAuth } from '@/hooks/useAuth';
+import Navbar from '@/components/navbar';
 
 export default function Home() {
   const { user, loading, isAuthenticated, logout } = useAuth();
@@ -11,11 +12,14 @@ export default function Home() {
   if (!isAuthenticated) return <p>Not logged in</p>;
 
   return (
-    <div>
-      <h1>Welcome, {user?.name} {user?.surname}</h1>
-      <p>Email: {user?.email}</p>
-      {user?.isTeacher && <p>You are a teacher</p>}
-      <button onClick={logout}>Logout</button>
-    </div>
+    <>
+      <Navbar/>
+      <div>
+        <h1>Welcome, {user?.name} {user?.surname}</h1>
+        <p>Email: {user?.email}</p>
+        {user?.is_teacher && <p>You are a teacher</p>}
+        <button onClick={logout}>Logout</button>
+      </div>
+    </>
   );
 }

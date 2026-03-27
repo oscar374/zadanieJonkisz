@@ -2,14 +2,19 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import Navbar from "@/components/navbar";
+import { useAuth } from '@/hooks/useAuth';
 
 export default function login(){
+    const { user, loading, isAuthenticated, logout } = useAuth();
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [feedback, setFeedBack] = useState("");
 
     const router = useRouter();
+
+    if(isAuthenticated) router.push("/");
     
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -43,6 +48,7 @@ export default function login(){
 
     return (
         <>
+            <Navbar/>
             <div 
                 className="w-full h-screen flex justify-center items-center"
                 style={{

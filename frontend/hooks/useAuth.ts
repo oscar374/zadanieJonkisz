@@ -8,7 +8,7 @@ interface User {
     name: string;
     surname: string;
     email: string;
-    isTeacher: boolean;
+    is_teacher: boolean;
 }
 
 interface AuthContextType {
