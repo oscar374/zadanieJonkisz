@@ -1,4 +1,5 @@
-from fastapi import FastAPI, Response, Request, HTTPException
+from fastapi import FastAPI, Response, Cookie, HTTPException
+from typing import Optional
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import psycopg2
@@ -33,8 +34,11 @@ def init_db():
     cur.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id SERIAL PRIMARY KEY,
-            username TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL
+            name TEXT NOT NULL,
+            surname TEXT NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            isTeacher BOOLEAN DEFAULT FALSE
         );
     """)
     cur.execute("""
@@ -54,27 +58,37 @@ init_db()
 #-------------------------------------------- database setup
 
 class AuthRequest(BaseModel):
-    userName: str
+    email: str
     password: str
+    
+class RegisterRequest(BaseModel):
+    name: str
+    surname: str
+    email: str
+    password: str
+    isTeacher: bool
 
+class UserAuth(BaseModel):
+    userId: int;
+    authKey: str;
 
 #-------------------------------------------- login and register
 
 @app.post("/api/userRegister")
-def user_register(body: AuthRequest):
+def user_register(body: RegisterRequest):
     conn = get_db()
     cur = conn.cursor()
 
-    cur.execute("SELECT id FROM users WHERE username = %s", (body.userName,))
+    cur.execute("SELECT id FROM users WHERE email = %s", (body.email,))
     if cur.fetchone():
         cur.close()
         conn.close()
-        raise HTTPException(status_code=409, detail="Użytkownik już instnieje")
+        raise HTTPException(status_code=409, detail="User already exists")
 
     password_hash = bcrypt.hashpw(body.password.encode(), bcrypt.gensalt()).decode()
     cur.execute(
-        "INSERT INTO users (username, password_hash) VALUES (%s, %s)",
-        (body.userName, password_hash)
+        "INSERT INTO users (name, surname, email, password_hash, isTeacher) VALUES (%s, %s, %s, %s, %s)",
+        (body.name, body.surname, body.email, password_hash, body.isTeacher)
     )
     conn.commit()
     cur.close()
@@ -88,7 +102,7 @@ def user_login(body: AuthRequest, response: Response):
     conn = get_db()
     cur = conn.cursor()
 
-    cur.execute("SELECT id, password_hash FROM users WHERE username = %s", (body.userName,))
+    cur.execute("SELECT id, password_hash FROM users WHERE email = %s", (body.email,))
     user = cur.fetchone()
 
     if not user or not bcrypt.checkpw(body.password.encode(), user["password_hash"].encode()):
@@ -108,10 +122,67 @@ def user_login(body: AuthRequest, response: Response):
     cur.close()
     conn.close()
 
-    response.set_cookie(key="userId", value=str(user_id), httponly=True, samesite="lax")
-    response.set_cookie(key="authKey", value=auth_key, httponly=True, samesite="lax")
+    response.set_cookie(
+        key="userId", 
+        value=str(user_id), 
+        httponly=True, 
+        samesite="lax", 
+        secure=False, 
+        path="/"   
+    )
+    response.set_cookie(
+        key="authKey", 
+        value=auth_key, 
+        httponly=True, 
+        samesite="lax", 
+        secure=False,
+        path="/"
+    )
 
     return {"status": "ok"}
+
+
+@app.post("/api/auth")
+def user_auth(
+    userId: Optional[str] = Cookie(None), 
+    authKey: Optional[str] = Cookie(None)
+):
+    if not userId or not authKey:
+        raise HTTPException(status_code=401, detail="No session cookies found")
+
+    conn = get_db()
+    try:
+        cur = conn.cursor()
+
+        cur.execute(
+            "SELECT user_id FROM sessions WHERE user_id = %s AND auth_key = %s",
+            (int(userId), authKey)
+        )
+        session = cur.fetchone()
+
+        if not session:
+            print(f"FAIL: No match found for User {userId} and Key {authKey}")
+            raise HTTPException(status_code=401, detail="Invalid session")
+
+        cur.execute(
+            "SELECT id, name, surname, email, isTeacher FROM users WHERE id = %s",
+            (int(userId),)
+        )
+        user = cur.fetchone()
+
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        print("SUCCESS: User authenticated")
+        return {
+            "status": "ok",
+            "user": user 
+        }
+        
+    finally:
+        cur.close()
+        conn.close()
+
 
 #-------------------------------------------- login and register
 

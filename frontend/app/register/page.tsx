@@ -3,8 +3,51 @@
 import { useState } from "react";
 
 export default function register(){
-    const [userType, setUserType] = useState<"nauczyciel" | "uczen">("uczen");
 
+    const [userType, setUserType] = useState<"nauczyciel" | "uczen">("uczen");
+    const [firstName, setFirstName] = useState("");
+    const [lastName, setLastName] = useState("");
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const [passwordRepeat, setPasswordRepeat] = useState("");
+
+    const [feedback, setFeedBack] = useState("");
+
+    const handleRegister = async (e: React.FormEvent) => {
+        e.preventDefault();
+        
+        if (password !== passwordRepeat) {
+            setFeedBack("hasła nie sa takie same");
+            return;
+        }
+
+        try {
+            const response = await fetch("http://localhost:8000/api/userRegister", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    name: firstName,
+                    surname: lastName,
+                    email: email,
+                    password: password,
+                    isTeacher: userType === "nauczyciel",
+                }),
+            });
+
+            if (response.ok) {
+                setFeedBack("Pomyślnie zarejestrowano, teraz się zaloguj");
+                setFirstName(""); setLastName(""); setEmail(""); setPassword(""); setPasswordRepeat("");
+            } else {
+                setFeedBack("Takie dane są już w systemie");
+            }
+        } catch (error) {
+            console.error("err:", error);
+            setFeedBack("Wystąpił błąd podczas połączenie z serwerem, przepraszmy");
+        }
+    };
+    
     return (
         <>
             <div 
@@ -41,34 +84,48 @@ export default function register(){
                             <input
                                 type="text"
                                 placeholder="Imię"
+                                value={firstName} 
+                                onChange={(e) => setFirstName(e.target.value)}
                                 className=" w-1/2 flex-1 bg-gray-700 rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:bg-gray-600"
                             />
                             <input
                                 type="text"
+                                value={lastName} 
+                                onChange={(e) => setLastName(e.target.value)}
                                 placeholder="Nazwisko"
                                 className="flex-1 bg-gray-700 rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:bg-gray-600"
                             />
                         </div>
                         <input
                             type="email"
+                            value={email} 
+                            onChange={(e) => setEmail(e.target.value)}
                             placeholder="Email"
                             className="w-full bg-gray-700 rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:bg-gray-600 mb-4"
                         />
                         <input
                             type="password"
+                            value={password} 
+                            onChange={(e) => setPassword(e.target.value)}
                             placeholder="Hasło"
                             className="w-full bg-gray-700 rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:bg-gray-600 mb-4"
                         />
                         <input
-                            type="passwordRepeat"
+                            type="password"
+                            value={passwordRepeat} 
+                            onChange={(e) => setPasswordRepeat(e.target.value)}
                             placeholder="Powtórz hasło"
                             className="w-full bg-gray-700 rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:bg-gray-600"
                         />
                     </div>
 
-                    <button className={`mt-6 px-6 py-2 bg-gray-900 hover:bg-gray-600 rounded-lg cursor-pointer ${userType === "uczen" ? "text-blue-400" : "text-red-400"}`}>
+                    <button 
+                        onClick={handleRegister}
+                        className={`mt-6 px-6 py-2 bg-gray-900 hover:bg-gray-600 rounded-lg cursor-pointer ${userType === "uczen" ? "text-blue-400" : "text-red-400"}`}
+                    >
                         Zarejestruj się
                     </button>
+                    {feedback && <p className="mt-4 text-center text-white">{feedback}</p>}
                 </div>
             </div>
         </>
