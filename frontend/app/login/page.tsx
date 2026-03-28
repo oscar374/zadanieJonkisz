@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Navbar from "@/components/navbar";
 import { useAuth } from '@/hooks/useAuth';
@@ -14,7 +14,11 @@ export default function login(){
 
     const router = useRouter();
 
-    if(isAuthenticated) router.push("/");
+    useEffect(() => {
+        if (isAuthenticated) {
+             router.push("/");
+        }
+    }, [isAuthenticated, router]);
     
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -59,7 +63,7 @@ export default function login(){
                     backgroundBlendMode: 'darken'
                 }}
             >
-                <div className={`w-1/3 h-2/3 bg-gray-800 flex justify-center items-center flex-col border-1 rounded-3xl border-gray-300`}>
+                <div className={`w-140 h-2/3 bg-gray-800 flex justify-center items-center flex-col border-1 rounded-3xl border-gray-300`}>
                     <h1 className="text-2xl">Zaloguj się</h1>           
 
                     <div className="w-9/12 p-10 bg-gray-900 mt-6 rounded-3xl">

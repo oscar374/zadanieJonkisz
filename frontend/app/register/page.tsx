@@ -62,7 +62,7 @@ export default function register(){
                     backgroundBlendMode: 'darken'
                 }}
             >
-                <div className={`w-1/3 h-2/3 bg-gray-800 flex justify-center items-center flex-col border-1 rounded-3xl ${userType === "uczen" ? "border-blue-700" : "border-red-700"}`}>
+                <div className={`w-180 h-2/3 bg-gray-800 flex justify-center items-center flex-col border-1 rounded-3xl ${userType === "uczen" ? "border-blue-700" : "border-red-700"}`}>
                     <h1 className="text-2xl">Załóż konto</h1>
                     
                     <div className="flex gap-4 mt-2">
