@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Response, Cookie, HTTPException
+from fastapi import FastAPI, Response, Cookie, HTTPException, Query
 from typing import Optional
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -6,6 +6,8 @@ import psycopg2
 import psycopg2.extras
 import bcrypt
 import secrets
+import string
+import random
 import os
 
 app = FastAPI()
@@ -13,9 +15,9 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000"],
-    allow_methods=["*"],
-    allow_headers=["*"],
     allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
 )
 
 #-------------------------------------------- database setup
@@ -50,6 +52,33 @@ def init_db():
             created_at TIMESTAMP DEFAULT NOW()
         );
     """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS classes (
+            id SERIAL PRIMARY KEY,
+            creator_id INTEGER NOT NULL REFERENCES users(id),
+            name TEXT NOT NULL,
+            color TEXT NOT NULL,
+            invitationCode TEXT UNIQUE NOT NULL,
+            created_at TIMESTAMP DEFAULT NOW()
+        );
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS studentToClass (
+            id SERIAL PRIMARY KEY,
+            class_id INTEGER NOT NULL REFERENCES classes(id),
+            student_id INTEGER NOT NULL REFERENCES users(id),
+            created_at TIMESTAMP DEFAULT NOW()
+        );
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS studentInvitation (
+            id SERIAL PRIMARY KEY,
+            class_id INTEGER NOT NULL REFERENCES classes(id),
+            student_id INTEGER NOT NULL REFERENCES users(id),
+            created_at TIMESTAMP DEFAULT NOW()
+        );
+    """)
+
     conn.commit()
     cur.close()
     conn.close()
@@ -69,8 +98,16 @@ class RegisterRequest(BaseModel):
     isTeacher: bool
 
 class UserAuth(BaseModel):
-    userId: int;
-    authKey: str;
+    userId: int
+    authKey: str
+
+class CreateClass(BaseModel):
+    name: str
+    color: str
+
+class GetClass(BaseModel):
+    userId: int
+
 
 #-------------------------------------------- login and register
 
@@ -85,9 +122,6 @@ def user_register(body: RegisterRequest):
         conn.close()
         raise HTTPException(status_code=409, detail="User already exists")
 
-    print("is teacher: ");
-    print(body.isTeacher);
-
     password_hash = bcrypt.hashpw(body.password.encode(), bcrypt.gensalt()).decode()
     cur.execute(
         "INSERT INTO users (name, surname, email, password_hash, is_teacher) VALUES (%s, %s, %s, %s, %s)",
@@ -98,7 +132,6 @@ def user_register(body: RegisterRequest):
     conn.close()
 
     return {"status": "ok"}
-
 
 @app.post("/api/userLogin")
 def user_login(body: AuthRequest, response: Response):
@@ -144,7 +177,6 @@ def user_login(body: AuthRequest, response: Response):
 
     return {"status": "ok"}
 
-
 @app.post("/api/auth")
 def user_auth(
     userId: Optional[str] = Cookie(None), 
@@ -185,7 +217,131 @@ def user_auth(
     finally:
         cur.close()
         conn.close()
+
+def generate_invitation_code(length=16):
+    characters = string.ascii_uppercase + string.digits
+    return ''.join(random.choice(characters) for _ in range(length))
+
+@app.post("/api/addClass")
+def addClass(
+    body: CreateClass,
+    userId: Optional[str] = Cookie(None)
+):
     
+    if not userId:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    
+    conn = None
+    try:
+        conn = get_db()
+        cur = conn.cursor()    
+
+        invitationCode = generate_invitation_code()
+        
+        cur.execute(
+            "INSERT INTO classes (creator_id, name, color, invitationCode) VALUES (%s, %s, %s, %s) RETURNING id",
+            (int(userId), body.name, body.color, invitationCode)
+        )
+
+        class_id = cur.fetchone()["id"]
+        conn.commit()
+        
+        cur.close()
+        conn.close()
+
+        return {
+            "status": "ok",
+            "classId": class_id,
+            "invitationCode": invitationCode
+        }
+    
+    except Exception as e:
+        if conn:
+            conn.rollback()
+            cur.close()
+            conn.close()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/getClasses")
+def getClasses(userId: Optional[str] = Cookie(None)):
+    conn = get_db()
+    cur = conn.cursor()  
+
+    cur.execute(
+        "SELECT * FROM classes WHERE creator_id = %s",
+        (int(userId),)
+    )
+    
+    result = cur.fetchall()
+    cur.close()
+    conn.close()
+    return result
+
+@app.get("/api/fetchClass")
+def fetchClass(classId: int = Query(...)):
+    conn = get_db()
+    cur = conn.cursor()
+
+    cur.execute(
+        "SELECT * FROM classes WHERE id = %s",
+        (classId,)
+    )
+
+    result = cur.fetchall()
+    cur.close()
+    conn.close()
+    return result
+    
+
+@app.post("/api/force/deleteAllClasses")
+def deleteAllClasses():
+    conn = get_db()
+    cur = conn.cursor()  
+
+    cur.execute(
+        "DROP TABLE IF EXISTS classes"
+    )  
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    return {"status": "ok"}
+
+@app.post("/api/force/resetDataBase")
+def resetDataBase():
+    conn = None
+    cur = None
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+
+        cur.execute("""
+            DO $$ DECLARE r RECORD;
+            BEGIN
+                FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public') LOOP
+                    EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(r.tablename) || ' CASCADE';
+                END LOOP;
+            END $$;
+        """)
+
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        init_db()
+
+        return {"status": "ok"}
+    
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 #-------------------------------------------- login and register
 
@@ -210,4 +366,3 @@ def user_auth(
 #     finally:
 #         cur.close()
 #         conn.close()
-
