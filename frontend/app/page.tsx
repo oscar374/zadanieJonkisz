@@ -30,12 +30,51 @@ export default function Home() {
                     backgroundBlendMode: 'darken'
                 }}
             >
-                <div className="w-2/3 h-3/4 bg-gray-800 flex justify-center items-center flex-col border-1 rounded-3xl border-gray-400">
-                    <h1>Welcome, {user?.name} {user?.surname}</h1>
-                    <p>Email: {user?.email}</p>
-                    {user?.is_teacher && <p>You are a teacher</p>}
-                    <button onClick={logout}>Logout</button>
+            <div className="w-3/4 mx-auto h-11/12">
+            {/* Profile Header Card */}
+            <div className="bg-gray-900 rounded-3xl p-6 mb-6">
+                <div className="flex items-start justify-between gap-4">
+                <div className="flex items-center gap-4 flex-1">
+                    <div className="w-16 h-16 rounded-full bg-gray-300 flex items-center justify-center text-gray-900 font-bold text-xl flex-shrink-0">
+                    {user?.name?.charAt(0)}{user?.surname?.charAt(0)}
+                    </div>
+                    <div>
+                    <h1 className="text-2xl text-white">
+                        Witaj, {user?.name} {user?.surname}
+                    </h1>
+                    </div>
                 </div>
+                <button
+                    onClick={logout}
+                    className="px-4 py-2 rounded-lg text-gray-200 hover:bg-gray-700 transition-colors"
+                >
+                    Logout
+                </button>
+                </div>
+            </div>
+
+            {/* Content Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-gray-900 rounded-3xl p-5">
+                <h2 className="text-lg text-white mb-4">informacje o koncie</h2>
+                <p className="text-xs text-gray-400 uppercase tracking-wide">Email</p>
+                <p className="text-gray-200">{user?.email}</p>
+                </div>
+
+                <div className="bg-gray-900 rounded-3xl 0 p-5">
+                <h2 className="text-lg text-white mb-4">Typ konta</h2>
+                {user?.is_teacher ? (
+                    <span className="inline-block px-3 py-1 bg-red-600 text-white rounded-lg text-sm font-medium">
+                    Nauczyciel
+                    </span>
+                ) : (
+                    <span className="inline-block px-3 py-1 bg-blue-600 text-white rounded-lg text-sm font-medium">
+                    Uczeń
+                    </span>
+                )}
+                </div>
+            </div>
+            </div>
             </div>
         </>
     );

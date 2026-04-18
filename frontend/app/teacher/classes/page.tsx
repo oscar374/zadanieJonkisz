@@ -102,7 +102,7 @@ export default function classes(){
                     backgroundBlendMode: 'darken'
                 }}
             >
-                <div className="h-11/12 w-11/12 bg-gray-900 flex rounded-2xl">
+                <div className="h-11/12 w-3/4 bg-gray-900 flex rounded-2xl">
                     <div className="w-4/5 h-full">
                         <div className="">
                             {classes.length > 0 ? (

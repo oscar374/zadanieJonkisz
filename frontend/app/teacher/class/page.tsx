@@ -45,14 +45,14 @@ export default function classPage(){
                     backgroundBlendMode: 'darken'
                 }}
             >
-                <div className="h-11/12 w-11/12 bg-gray-900 flex rounded-2xl">
+                <div className="h-11/12 w-3/4 bg-gray-900 flex rounded-2xl">
                     <div className="w-1/4 h-full bg-gray-700 rounded-tl-2xl rounded-bl-2xl flex justify-center items-center flex-col">
                         <div className="h-1/2 w-full flex justify-center items-center flex-col">
                             <h1 className="text-white text-6xl">{className}</h1> <br></br>
                         </div>
                         <div className="h-1/2 w-full bg-gray-800 flex justify-center items-center flex-col gap-2">
-                            <p className="text-2xl">kod do dołączenia: </p>
-                            <p className="bg-gray-700 p-10 rounded-2xl text-2xl">{invitationCode}</p>
+                            <p className="text-1xl">kod do dołączenia: </p>
+                            <p className="bg-gray-700 p-10 rounded-2xl text-1xl">{invitationCode}</p>
                         </div>
                     </div>
                     <div className="w-3/4 h-full bg-gray-900 rounded-tr-2xl rounded-br-2xl p-10">
