@@ -96,20 +96,20 @@ export default function Classes() {
                     backgroundBlendMode: 'darken'
                 }}
             >
-                <div className="h-5/6 w-3/4 bg-gray-900 flex rounded-2xl overflow-hidden shadow-2xl">
+                <div className="h-11/12 w-3/4 bg-gray-900 flex rounded-2xl overflow-hidden">
                     <div className="h-full w-1/3 bg-gray-800 p-10 flex flex-col border-r border-gray-700">
-                        <p className="mb-10 text-2xl text-white font-semibold">Dołącz do klasy</p>
+                        <p className="mb-10 text-2xl text-white">Dołącz do klasy</p>
                         
                         <input 
                             value={invitationCode}
                             onChange={(e) => setInvitationCode(e.target.value)}
                             className="text-xl bg-gray-900 text-white w-full mb-6 text-center p-3 rounded-xl border border-gray-600 focus:outline-none focus:border-blue-500 transition-all"
-                            placeholder="Kod zaproszenia"
+                            placeholder="kod zaproszenia"
                         />
                         
                         <button 
                             onClick={handleClassJoin}
-                            className="text-xl w-full p-4 bg-blue-600 text-white font-bold cursor-pointer rounded-xl hover:bg-blue-500 transition-colors shadow-lg"
+                            className="text-xl w-full p-4 bg-gray-700 text-white cursor-pointer rounded-2xl transition-colors shadow-lg"
                         >
                             Wyślij prośbę
                         </button>
@@ -124,7 +124,7 @@ export default function Classes() {
                     </div>
 
                     <div className="h-full w-2/3 p-10 overflow-y-auto">
-                        <p className="mb-8 text-2xl text-white font-semibold">Twoje klasy</p>
+                        <p className="mb-8 text-2xl text-white font-semibold">Klasy do których należysz</p>
                         
                         <div className="flex flex-wrap gap-6">
                             {classes.length > 0 ? (
@@ -132,19 +132,18 @@ export default function Classes() {
                                     <div 
                                         key={classItem.id} 
                                         onClick={() => handleClassClick(classItem.id)}
-                                        className="w-32 h-32 flex flex-col justify-center items-center rounded-2xl cursor-pointer hover:scale-105 transition-transform shadow-lg group relative"
+                                        className="w-32 h-32 flex flex-col justify-center items-center rounded-2xl cursor-pointer transition-transform shadow-lg group relative"
                                         style={{ backgroundColor: classItem.color }}
                                     >
                                         <span className="text-white text-xl font-bold text-center px-2 drop-shadow-md">
                                             {classItem.name}
                                         </span>
-                                        <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-10 rounded-2xl transition-opacity"></div>
+                                        <div className="absolute inset-0 bg-black opacity-0 rounded-2xl transition-opacity"></div>
                                     </div>
                                 ))
                             ) : (
                                 <div className="w-full flex flex-col items-center justify-center mt-10 text-gray-500">
-                                    <p className="text-xl">Nie należysz jeszcze do żadnej klasy.</p>
-                                    <p className="text-sm">Użyj kodu po lewej, aby poprosić o dostęp.</p>
+                                    <p className="text-xl">Nie ma cie w zadnej klasie</p>
                                 </div>
                             )}
                         </div>
