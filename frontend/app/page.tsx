@@ -53,7 +53,6 @@ export default function Home() {
                 </div>
             </div>
 
-            {/* Content Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-gray-900 rounded-3xl p-5">
                 <h2 className="text-lg text-white mb-4">informacje o koncie</h2>
