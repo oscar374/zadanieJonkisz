@@ -30,16 +30,16 @@ export default function Navbar(){
                         {user?.is_teacher && (
                             <>
                                 <h1 className='text-2xl p-2 mb-5'>Panel nauczyciela</h1>
-                                <Link className='p-2 hover:text-gray-500' href={"/"}>PANEL GŁÓWNY</Link>
-                                <Link className='p-2 hover:text-gray-500' href={"/teacher/classes"}>KLASY</Link>
+                                <Link className='p-2 hover:text-gray-500' href={"/"}>HOME</Link>
+                                <Link className='p-2 hover:text-gray-500' href={"/teacher/classes"}>TWOJE KLASY</Link>
                             </>
                         )}
 
                         {!user?.is_teacher && (
                             <>
                                 <h1 className='text-2xl p-2'>Panel ucznia</h1>
-                                <Link className='p-2 hover:text-gray-500' href={"/"}>PANEL</Link>
-                                <Link className='p-2 hover:text-gray-500' href={"/student/classes"}>TWOJE KLASY</Link>
+                                <Link className='p-2 hover:text-gray-500' href={"/"}>HOME</Link>
+                                <Link className='p-2 hover:text-gray-500' href={"/student/classes"}>KLASY</Link>
                             </>
                         )}
 
