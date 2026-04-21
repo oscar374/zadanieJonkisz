@@ -1,7 +1,7 @@
 "use client";
 
 import Navbar from "@/components/navbar";
-import { useAuth } from '@/hooks/useAuth'; // Added auth import
+import { useAuth } from '@/hooks/useAuth';
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
@@ -14,12 +14,33 @@ interface ClassItem {
 }
 
 export default function Classes() {
-    const { user, loading, isAuthenticated } = useAuth(); // Added auth hook
+    const { user, loading, isAuthenticated } = useAuth();
     const [invitationCode, setInvitationCode] = useState("");
     const [classes, setClasses] = useState<ClassItem[]>([]);
     const [feedback, setFeedback] = useState("");
     
     const router = useRouter();
+
+    useEffect(() => {
+        const fetchClasses = async () => {
+            try {
+                const response = await fetch("http://localhost:8000/api/getClassesStudent", {
+                    method: "GET",
+                    credentials: "include",
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    setClasses(data);
+                }
+            } catch (error) {
+                console.error("Failed to fetch classes:", error);
+            }
+        };
+
+        if (isAuthenticated) {
+            fetchClasses();
+        }
+    }, [isAuthenticated]);
 
     useEffect(() => {
         if (!isAuthenticated && !loading) {
@@ -36,9 +57,7 @@ export default function Classes() {
         try {
             const response = await fetch("http://localhost:8000/api/classJoinRequest", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
+                headers: { "Content-Type": "application/json" },
                 credentials: "include",
                 body: JSON.stringify({ invitationCode: invitationCode }),
             });
@@ -58,7 +77,11 @@ export default function Classes() {
         }
     };
 
-    if (loading || !isAuthenticated) return <p>Loading...</p>;
+    const handleClassClick = (id: number) => {
+        router.push(`/class/${id}`);
+    };
+
+    if (loading || !isAuthenticated) return <p className="text-white">Loading...</p>;
 
     return (
         <>
@@ -73,33 +96,59 @@ export default function Classes() {
                     backgroundBlendMode: 'darken'
                 }}
             >
-                <div className="h-11/12 w-3/4 bg-gray-900 flex rounded-2xl">
-                    <div className="h-full w-1/3 rounded-tl-2xl rounded-bl-2xl bg-gray-700 p-10 flex flex-col">
-                        <p className="mb-10 text-2xl text-white">Podaj kod do klasy: </p>
+                <div className="h-5/6 w-3/4 bg-gray-900 flex rounded-2xl overflow-hidden shadow-2xl">
+                    <div className="h-full w-1/3 bg-gray-800 p-10 flex flex-col border-r border-gray-700">
+                        <p className="mb-10 text-2xl text-white font-semibold">Dołącz do klasy</p>
                         
                         <input 
                             value={invitationCode}
                             onChange={(e) => setInvitationCode(e.target.value)}
-                            className="text-2xl bg-gray-900 text-white w-full mb-10 text-center p-2 rounded-xl border border-gray-600 focus:outline-none focus:border-gray-400"
-                            placeholder="Wpisz kod..."
+                            className="text-xl bg-gray-900 text-white w-full mb-6 text-center p-3 rounded-xl border border-gray-600 focus:outline-none focus:border-blue-500 transition-all"
+                            placeholder="Kod zaproszenia"
                         />
                         
                         <button 
                             onClick={handleClassJoin}
-                            className="text-2xl w-1/2 p-5 bg-gray-900 text-gray-200 cursor-pointer rounded-2xl hover:bg-gray-800 transition-colors"
+                            className="text-xl w-full p-4 bg-blue-600 text-white font-bold cursor-pointer rounded-xl hover:bg-blue-500 transition-colors shadow-lg"
                         >
-                            Dołącz
+                            Wyślij prośbę
                         </button>
 
                         <div className="mt-5 h-8">
                             {feedback && (
-                                <p className="text-gray-300 text-base transition-opacity duration-300">
+                                <p className="text-gray-300 text-sm italic">
                                     {feedback}
                                 </p>
                             )}
                         </div>
                     </div>
-                    <div className="h-full w-2/3 rounded-tr-2xl rounded-br-2xl"></div>
+
+                    <div className="h-full w-2/3 p-10 overflow-y-auto">
+                        <p className="mb-8 text-2xl text-white font-semibold">Twoje klasy</p>
+                        
+                        <div className="flex flex-wrap gap-6">
+                            {classes.length > 0 ? (
+                                classes.map((classItem) => (
+                                    <div 
+                                        key={classItem.id} 
+                                        onClick={() => handleClassClick(classItem.id)}
+                                        className="w-32 h-32 flex flex-col justify-center items-center rounded-2xl cursor-pointer hover:scale-105 transition-transform shadow-lg group relative"
+                                        style={{ backgroundColor: classItem.color }}
+                                    >
+                                        <span className="text-white text-xl font-bold text-center px-2 drop-shadow-md">
+                                            {classItem.name}
+                                        </span>
+                                        <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-10 rounded-2xl transition-opacity"></div>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="w-full flex flex-col items-center justify-center mt-10 text-gray-500">
+                                    <p className="text-xl">Nie należysz jeszcze do żadnej klasy.</p>
+                                    <p className="text-sm">Użyj kodu po lewej, aby poprosić o dostęp.</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 </div>    
             </div>        
         </>

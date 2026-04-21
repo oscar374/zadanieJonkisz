@@ -296,6 +296,40 @@ def getClasses(userId: Optional[str] = Cookie(None)):
     conn.close()
     return result
 
+@app.get("/api/getClassesStudent")
+def getClassesStudent(userId: Optional[str] = Cookie(None)):
+    if not userId:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    conn = get_db()
+    cur = conn.cursor()
+
+    try:
+        query = """
+            SELECT 
+                c.id, 
+                c.creator_id, 
+                c.name, 
+                c.color, 
+                c.invitationCode, 
+                c.created_at 
+            FROM classes c
+            JOIN studentToClass stc ON c.id = stc.class_id
+            WHERE stc.student_id = %s
+            ORDER BY c.created_at DESC
+        """
+        cur.execute(query, (int(userId),))
+        result = cur.fetchall()
+
+        return result
+
+    except Exception as e:
+        print(f"Error fetching student classes: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+    finally:
+        cur.close()
+        conn.close()   
+
 @app.get("/api/fetchClass")
 def fetchClass(classId: int = Query(...)):
     conn = get_db()
