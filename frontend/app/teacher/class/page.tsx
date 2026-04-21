@@ -19,6 +19,24 @@ interface Student {
     created_at: string
 }
 
+interface Task {
+    id: number
+    title: string
+    description: string
+    created_at: string
+}
+
+interface Submission {
+    id: number
+    task_id: number
+    student_id: number
+    content: string
+    grade: string | null
+    created_at: string
+    name: string
+    surname: string
+}
+
 export default function ClassPage() {
 
     const [className, setClassName] = useState("")
@@ -26,7 +44,15 @@ export default function ClassPage() {
     const [invitationCode, setInvitationCode] = useState("")
     const [invitations, setInvitations] = useState<Invitation[]>([])
     const [students, setStudents] = useState<Student[]>([])
+    const [tasks, setTasks] = useState<Task[]>([])
+    const [submissions, setSubmissions] = useState<Record<number, Submission[]>>({})
     const [loading, setLoading] = useState(true)
+
+    const [newTaskTitle, setNewTaskTitle] = useState("")
+    const [newTaskDesc, setNewTaskDesc] = useState("")
+    const [expandedTaskId, setExpandedTaskId] = useState<number | null>(null)
+    const [gradingSubmissionId, setGradingSubmissionId] = useState<number | null>(null)
+    const [gradeInput, setGradeInput] = useState("")
 
     const getStoredClassId = () => sessionStorage.getItem("class")
 
@@ -59,6 +85,18 @@ export default function ClassPage() {
         if (data) setStudents(data.students)
     }
 
+    const fetchTasks = async (id: string) => {
+        const data = await fetchJson(`http://localhost:8000/api/getTasks?classId=${id}`)
+        if (data) setTasks(data.tasks)
+    }
+
+    const fetchSubmissions = async (taskId: number) => {
+        const data = await fetchJson(`http://localhost:8000/api/getSubmissions?taskId=${taskId}`)
+        if (data) {
+            setSubmissions(prev => ({ ...prev, [taskId]: data.submissions }))
+        }
+    }
+
     const loadInitialData = async () => {
         setLoading(true)
 
@@ -71,7 +109,8 @@ export default function ClassPage() {
         await Promise.all([
             fetchClassData(id),
             fetchInvitations(id),
-            fetchStudents(id)
+            fetchStudents(id),
+            fetchTasks(id)
         ])
 
         setLoading(false)
@@ -106,6 +145,52 @@ export default function ClassPage() {
         }
     }
 
+    const handleAddTask = async () => {
+        if (!newTaskTitle || !newTaskDesc) return
+        const response = await fetch(`http://localhost:8000/api/addTask`, {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                classId: parseInt(classId),
+                title: newTaskTitle,
+                description: newTaskDesc
+            })
+        })
+        if (response.ok) {
+            setNewTaskTitle("")
+            setNewTaskDesc("")
+            await fetchTasks(classId)
+        }
+    }
+
+    const toggleTask = (taskId: number) => {
+        if (expandedTaskId === taskId) {
+            setExpandedTaskId(null)
+        } else {
+            setExpandedTaskId(taskId)
+            fetchSubmissions(taskId)
+        }
+    }
+
+    const handleMarkSubmission = async (submissionId: number, taskId: number) => {
+        if (!gradeInput) return
+        const response = await fetch(`http://localhost:8000/api/markSubmission`, {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                submissionId: submissionId,
+                grade: gradeInput
+            })
+        })
+        if (response.ok) {
+            setGradingSubmissionId(null)
+            setGradeInput("")
+            await fetchSubmissions(taskId)
+        }
+    }
+
     useEffect(() => {
         loadInitialData()
     }, [])
@@ -128,60 +213,120 @@ export default function ClassPage() {
                         <div className="h-1/2 w-full flex justify-center items-center flex-col text-center p-4">
                             <h1 className="text-white text-5xl break-words">{className}</h1>
                         </div>
-                        <div className="h-1/2 w-full bg-gray-800 flex justify-center items-center flex-col gap-2">
-                            <p className="text-1xl">kod do dołączenia:</p>
-                            <p className="bg-gray-700 p-3 rounded-2xl text-1xl font-mono">{invitationCode}</p>
+                        <div className="h-1/2 w-full bg-gray-800 flex justify-center items-center flex-col gap-2 rounded-bl-2xl">
+                            <p className="text-1xl text-gray-300">kod do dołączenia:</p>
+                            <p className="bg-gray-700 p-3 rounded-2xl text-1xl font-mono text-white">{invitationCode}</p>
                         </div>
                     </div>
 
-                    <div className="w-4/5 h-full bg-gray-900 rounded-tr-2xl rounded-br-2xl flex flex-col">
+                    <div className="w-4/5 h-full bg-gray-900 rounded-tr-2xl rounded-br-2xl flex flex-row">
 
-                        <div className="w-full h-2/3 p-10 overflow-y-auto">
-                            <h1 className="text-white text-2xl">Uczniowie:</h1>
-                            <br />
-
-                            <div className="space-y-3">
-                                {loading ? (
-                                    <p className="text-gray-400 italic">Ładowanie...</p>
-                                ) : students.length > 0 ? (
-                                    students.map((student) => (
-                                        <div key={student.user_id} className="bg-gray-800 p-1 rounded-lg flex justify-between items-center">
-                                            <div className="flex">
-                                                <p className="text-white font-semibold font-xs mr-5 ml-5">{student.name} {student.surname}</p>
-                                                <p className="text-gray-400 text-sm font-xs">{student.email}</p>
+                        <div className="w-1/2 h-full flex flex-col border-r-0">
+                            <div className="w-full h-2/3 p-10 overflow-y-auto">
+                                <h1 className="text-white text-2xl mb-6">Uczniowie:</h1>
+                                <div className="space-y-3">
+                                    {loading ? (
+                                        <p className="text-gray-400 italic">Ładowanie...</p>
+                                    ) : students.length > 0 ? (
+                                        students.map((student) => (
+                                            <div key={student.user_id} className="bg-gray-800 p-3 rounded-2xl flex justify-between items-center">
+                                                <div className="flex flex-col">
+                                                    <p className="text-white font-semibold text-sm">{student.name} {student.surname}</p>
+                                                    <p className="text-gray-400 text-xs">{student.email}</p>
+                                                </div>
+                                                <p className="text-gray-500 text-xs">
+                                                    {new Date(student.created_at).toLocaleDateString("pl-PL")}
+                                                </p>
                                             </div>
-                                            <p className="text-gray-500 text-xs">
-                                                Dołączył: {new Date(student.created_at).toLocaleDateString("pl-PL")}
-                                            </p>
-                                        </div>
-                                    ))
-                                ) : (
-                                    <p className="text-gray-500 italic">Brak uczniów w klasie.</p>
-                                )}
+                                        ))
+                                    ) : (
+                                        <p className="text-gray-500 italic">Brak uczniów w klasie.</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="w-full h-1/3 bg-gray-950 p-10 overflow-y-auto">
+                                <h1 className="text-white text-xl mb-4">Prośby o dołączenie</h1>
+                                <div className="space-y-3">
+                                    {invitations.length > 0 ? (
+                                        invitations.map((inv) => (
+                                            <div key={inv.request_id} className="w-full flex justify-between items-center bg-gray-900 p-3 rounded-2xl">
+                                                <p className="text-white font-semibold text-sm">{inv.name} {inv.surname}</p>
+                                                <div className="flex gap-2">
+                                                    <button onClick={() => handleJoinResponse(inv.request_id, classId, inv.user_id, true)} className="bg-green-700 text-xs aspect-square hover:bg-green-600 text-white px-3 py-2 rounded-2xl transition-colors">✅</button>
+                                                    <button onClick={() => handleJoinResponse(inv.request_id, classId, inv.user_id, false)} className="bg-red-800 text-xs aspect-square hover:bg-red-700 text-white px-3 py-2 rounded-2xl transition-colors">❌</button>
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <p className="text-gray-500 italic">brak</p>
+                                    )}
+                                </div>
                             </div>
                         </div>
 
-                        <div className="w-full h-1/3 bg-gray-950 p-10 overflow-y-auto border-t border-gray-800">
-                            <h1 className="text-white text-xl">Prośby o dołączenie</h1>
-                            <br />
+                        <div className="w-1/2 h-full bg-gray-800 rounded-br-2xl rounded-tr-2xl p-10 overflow-y-auto flex flex-col gap-6">
+                            <h1 className="text-white text-2xl">Zadania</h1>
+                            <div className="bg-gray-900 p-6 rounded-2xl flex flex-col gap-4">
+                                <input 
+                                    className="bg-gray-800 text-white rounded-2xl p-3 focus:outline-none" 
+                                    placeholder="Tytuł zadania" 
+                                    value={newTaskTitle} 
+                                    onChange={e => setNewTaskTitle(e.target.value)} 
+                                />
+                                <textarea 
+                                    className="bg-gray-800 text-white rounded-2xl p-3 focus:outline-none min-h-24 resize-none" 
+                                    placeholder="Opis zadania" 
+                                    value={newTaskDesc} 
+                                    onChange={e => setNewTaskDesc(e.target.value)} 
+                                />
+                                <button className="bg-gray-700 text-white p-3 rounded-2xl hover:bg-gray-600 transition-colors" onClick={handleAddTask}>Dodaj Zadanie</button>
+                            </div>
 
-                            <div className="space-y-3">
-                                {invitations.length > 0 ? (
-                                    invitations.map((inv) => (
-                                        <div key={inv.request_id} className="w-3/12 inline-flex justify-between items-center bg-gray-900 p-4 rounded-xl">
-                                            <div className="flex">
-                                                <p className="text-white font-semibold text-xs">{inv.name} {inv.surname}</p>
-                                            </div>
-
-                                            <div className="flex gap-2">
-                                                <button onClick={() => handleJoinResponse(inv.request_id, classId, inv.user_id, true)} className="bg-green-700 text-xs aspect-square hover:bg-green-600 text-white px-4 py-2 rounded-full transition-colors">✅</button>
-                                                <button onClick={() => handleJoinResponse(inv.request_id, classId, inv.user_id, false)}  className="bg-red-800 text-xs aspect-square hover:bg-red-700 text-white px-4 py-2 rounded-full transition-colors">❌</button>
-                                            </div>
+                            <div className="flex flex-col gap-4">
+                                {tasks.map(task => (
+                                    <div key={task.id} className="bg-gray-900 rounded-2xl p-6 flex flex-col gap-4">
+                                        <div className="flex justify-between items-center cursor-pointer" onClick={() => toggleTask(task.id)}>
+                                            <h2 className="text-xl text-white font-semibold">{task.title}</h2>
+                                            <span className="text-gray-400 text-sm">{new Date(task.created_at).toLocaleDateString("pl-PL")}</span>
                                         </div>
-                                    ))
-                                ) : (
-                                    <p className="text-gray-500 italic">brak</p>
-                                )}
+                                        <p className="text-gray-300 text-sm">{task.description}</p>
+                                        
+                                        {expandedTaskId === task.id && (
+                                            <div className="mt-4 flex flex-col gap-3">
+                                                <h3 className="text-white text-lg">Przesłane rozwiązania:</h3>
+                                                {(submissions[task.id] || []).map(sub => (
+                                                    <div key={sub.id} className="bg-gray-800 p-4 rounded-2xl flex flex-col gap-3">
+                                                        <div className="flex justify-between items-center">
+                                                            <span className="text-white text-sm font-semibold">{sub.name} {sub.surname}</span>
+                                                            {sub.grade ? (
+                                                                <span className="text-green-400 text-sm bg-gray-900 px-3 py-1 rounded-2xl">Ocena: {sub.grade}</span>
+                                                            ) : (
+                                                                <span className="text-yellow-400 text-sm bg-gray-900 px-3 py-1 rounded-2xl">Nieocenione</span>
+                                                            )}
+                                                        </div>
+                                                        <p className="text-gray-300 bg-gray-900 p-3 rounded-2xl text-sm">{sub.content}</p>
+                                                        
+                                                        {gradingSubmissionId === sub.id ? (
+                                                            <div className="flex gap-2">
+                                                                <input className="bg-gray-900 text-white p-2 rounded-2xl flex-1 focus:outline-none text-sm" placeholder="Wpisz ocenę" value={gradeInput} onChange={e => setGradeInput(e.target.value)} />
+                                                                <button className="bg-green-700 text-white px-4 rounded-2xl hover:bg-green-600 text-sm transition-colors" onClick={() => handleMarkSubmission(sub.id, task.id)}>Zapisz</button>
+                                                                <button className="bg-gray-700 text-white px-4 rounded-2xl hover:bg-gray-600 text-sm transition-colors" onClick={() => { setGradingSubmissionId(null); setGradeInput(""); }}>Anuluj</button>
+                                                            </div>
+                                                        ) : (
+                                                            !sub.grade && (
+                                                                <button className="bg-gray-700 text-white p-2 rounded-2xl self-start hover:bg-gray-600 text-sm transition-colors" onClick={() => setGradingSubmissionId(sub.id)}>Oceń</button>
+                                                            )
+                                                        )}
+                                                    </div>
+                                                ))}
+                                                {(submissions[task.id] || []).length === 0 && (
+                                                    <p className="text-gray-500 italic text-sm">Brak rozwiązań.</p>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
                             </div>
                         </div>
 

@@ -78,7 +78,8 @@ export default function Classes() {
     };
 
     const handleClassClick = (id: number) => {
-        router.push(`/class/${id}`);
+        sessionStorage.setItem("class", id.toString());
+        router.push("/student/class");
     };
 
     if (loading || !isAuthenticated) return <p className="text-white">Loading...</p>;

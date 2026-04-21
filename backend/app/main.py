@@ -86,6 +86,25 @@ def init_db():
             created_at TIMESTAMP DEFAULT NOW()
         );
     """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS tasks (
+            id SERIAL PRIMARY KEY,
+            class_id INTEGER NOT NULL REFERENCES classes(id),
+            title TEXT NOT NULL,
+            description TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT NOW()
+        );
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS submissions (
+            id SERIAL PRIMARY KEY,
+            task_id INTEGER NOT NULL REFERENCES tasks(id),
+            student_id INTEGER NOT NULL REFERENCES users(id),
+            content TEXT NOT NULL,
+            grade TEXT DEFAULT NULL,
+            created_at TIMESTAMP DEFAULT NOW()
+        );
+    """)
 
     conn.commit()
     cur.close()
@@ -127,6 +146,19 @@ class JoinResponse(BaseModel):
     classId: int
     userId: int
     accept: bool
+
+class AddTaskRequest(BaseModel):
+    classId: int
+    title: str
+    description: str
+
+class SubmitTaskRequest(BaseModel):
+    taskId: int
+    content: str
+
+class MarkSubmissionRequest(BaseModel):
+    submissionId: int
+    grade: str
 
 #-------------------------------------------- login and register
 
@@ -612,6 +644,124 @@ def resetDataBase():
 #-------------------------------------------- login and register
 
 
+@app.post("/api/addTask")
+def addTask(body: AddTaskRequest, userId: Optional[str] = Cookie(None)):
+    if not userId:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT creator_id FROM classes WHERE id = %s", (body.classId,))
+        cls = cur.fetchone()
+        if not cls or cls["creator_id"] != int(userId):
+            raise HTTPException(status_code=403, detail="Not authorized")
+            
+        cur.execute(
+            "INSERT INTO tasks (class_id, title, description) VALUES (%s, %s, %s) RETURNING id",
+            (body.classId, body.title, body.description)
+        )
+        task_id = cur.fetchone()["id"]
+        conn.commit()
+        return {"status": "ok", "taskId": task_id}
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cur.close()
+        conn.close()
+
+@app.get("/api/getTasks")
+def getTasks(classId: int = Query(...)):
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT * FROM tasks WHERE class_id = %s ORDER BY created_at DESC", (classId,))
+        tasks = cur.fetchall()
+        return {"status": "ok", "tasks": tasks}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cur.close()
+        conn.close()
+
+@app.post("/api/submitTask")
+def submitTask(body: SubmitTaskRequest, userId: Optional[str] = Cookie(None)):
+    if not userId:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT id FROM submissions WHERE task_id = %s AND student_id = %s", (body.taskId, int(userId)))
+        if cur.fetchone():
+            raise HTTPException(status_code=409, detail="Already submitted")
+            
+        cur.execute(
+            "INSERT INTO submissions (task_id, student_id, content) VALUES (%s, %s, %s) RETURNING id",
+            (body.taskId, int(userId), body.content)
+        )
+        sub_id = cur.fetchone()["id"]
+        conn.commit()
+        return {"status": "ok", "submissionId": sub_id}
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cur.close()
+        conn.close()
+
+@app.get("/api/getSubmissions")
+def getSubmissions(taskId: int = Query(...), userId: Optional[str] = Cookie(None)):
+    if not userId:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        query = "SELECT s.*, u.name, u.surname FROM submissions s JOIN users u ON s.student_id = u.id WHERE s.task_id = %s ORDER BY s.created_at DESC"
+        cur.execute(query, (taskId,))
+        submissions = cur.fetchall()
+        return {"status": "ok", "submissions": submissions}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cur.close()
+        conn.close()
+
+@app.get("/api/getStudentSubmissions")
+def getStudentSubmissions(classId: int = Query(...), userId: Optional[str] = Cookie(None)):
+    if not userId:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        query = "SELECT s.* FROM submissions s JOIN tasks t ON s.task_id = t.id WHERE t.class_id = %s AND s.student_id = %s"
+        cur.execute(query, (classId, int(userId)))
+        submissions = cur.fetchall()
+        return {"status": "ok", "submissions": submissions}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cur.close()
+        conn.close()
+
+@app.post("/api/markSubmission")
+def markSubmission(body: MarkSubmissionRequest, userId: Optional[str] = Cookie(None)):
+    if not userId:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("UPDATE submissions SET grade = %s WHERE id = %s", (body.grade, body.submissionId))
+        conn.commit()
+        return {"status": "ok"}
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cur.close()
+        conn.close()
 
 # @app.get("/debug/getAllUsers")
 # def get_all_users():
