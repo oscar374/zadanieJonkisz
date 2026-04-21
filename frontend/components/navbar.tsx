@@ -40,8 +40,8 @@ export default function Navbar(){
                             <>
                                 <h1 className='text-2xl p-2'>Panel ucznia</h1>
                                 <Link className='p-2 hover:text-gray-500' href={"/"}>PANEL</Link>
-                                <Link className='p-2 hover:text-gray-500' href={"/login"}>ZADANIA</Link>
-                                <Link className='p-2 hover:text-gray-500' href={"/login"}>NAUCZYCIELE</Link>
+                                <Link className='p-2 hover:text-gray-500' href={"/students/homework"}>ZADANIA</Link>
+                                <Link className='p-2 hover:text-gray-500' href={"/student/classes"}>TWOJE KLASY</Link>
                             </>
                         )}
 

@@ -78,6 +78,14 @@ def init_db():
             created_at TIMESTAMP DEFAULT NOW()
         );
     """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS joinRequest (
+            id SERIAL PRIMARY KEY,
+            class_id INTEGER NOT NULL REFERENCES classes(id),
+            student_id INTEGER NOT NULL REFERENCES users(id),
+            created_at TIMESTAMP DEFAULT NOW()
+        );
+    """)
 
     conn.commit()
     cur.close()
@@ -108,6 +116,13 @@ class CreateClass(BaseModel):
 class GetClass(BaseModel):
     userId: int
 
+class JoinRequest(BaseModel):
+    invitationCode: str
+
+class JoinResponse(BaseModel):
+    classId: str
+    userId: int
+    accept: bool
 
 #-------------------------------------------- login and register
 
@@ -291,7 +306,170 @@ def fetchClass(classId: int = Query(...)):
     cur.close()
     conn.close()
     return result
+
+@app.get("/api/fetchInvitations")
+def fetchInvitations(
+    classId: int = Query(...), 
+    userId: Optional[str] = Cookie(None)
+):
+    if not userId:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    conn = get_db()
+    cur = conn.cursor()
+
+    try:
+        cur.execute(
+            "SELECT creator_id FROM classes WHERE id = %s",
+            (classId,)
+        )
+        cls = cur.fetchone()
+        
+        if not cls:
+            raise HTTPException(status_code=404, detail="Class not found")
+        
+        if cls["creator_id"] != int(userId):
+            raise HTTPException(status_code=403, detail="You are not the teacher of this class")
+
+        query = """
+            SELECT 
+                u.id as user_id, 
+                u.name, 
+                u.surname, 
+                u.email, 
+                jr.id as request_id, 
+                jr.created_at 
+            FROM joinRequest jr
+            JOIN users u ON jr.student_id = u.id
+            WHERE jr.class_id = %s
+            ORDER BY jr.created_at DESC
+        """
+        cur.execute(query, (classId,))
+        invitations = cur.fetchall()
+
+        return {
+            "status": "ok",
+            "invitations": invitations
+        }
+
+    except Exception as e:
+        print(f"Error fetching invitations: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+    finally:
+        cur.close()
+        conn.close()
     
+@app.post("/api/classJoinRequest")
+def classJoinRequest(
+    body: JoinRequest,
+    userId: Optional[str] = Cookie(None)
+):
+    if not userId:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+        
+    conn = None
+    cur = None
+    try:
+        conn = get_db()
+        cur = conn.cursor()   
+        
+        cur.execute(
+            "SELECT id FROM classes WHERE invitationCode = %s",
+            (body.invitationCode,)
+        )
+        target_class = cur.fetchone()
+        
+        if not target_class:
+            raise HTTPException(status_code=404, detail="Invalid invitation code")
+            
+        class_id = target_class["id"]
+
+        cur.execute(
+            "SELECT id FROM joinRequest WHERE class_id = %s AND student_id = %s",
+            (class_id, int(userId))
+        )
+        if cur.fetchone():
+            raise HTTPException(status_code=409, detail="Join request already sent")
+
+        cur.execute(
+            "INSERT INTO joinRequest (class_id, student_id) VALUES (%s, %s) RETURNING id",
+            (class_id, int(userId))
+        )
+        
+        request_id = cur.fetchone()["id"]
+        conn.commit()
+        
+        return {
+            "status": "ok",
+            "requestId": request_id,
+            "message": "Join request sent successfully"
+        }
+
+    except HTTPException:
+        if conn:
+            conn.rollback()
+        raise
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+@app.post("/api/joinResponse")
+def joinResponse(body: JoinResponse):
+    conn = None
+    cur = None
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+ 
+        cur.execute(
+            "SELECT student_id FROM joinRequest WHERE id = %s",
+            (int(body.classId),)
+        )
+        join_req = cur.fetchone()
+        
+        if not join_req:
+            raise HTTPException(status_code=404, detail="Join request not found")
+ 
+        student_id = join_req["student_id"]
+ 
+        if body.accept:
+            cur.execute(
+                "INSERT INTO studentToClass (class_id, student_id) VALUES (%s, %s)",
+                (int(body.classId), student_id)
+            )
+ 
+        cur.execute(
+            "DELETE FROM joinRequest WHERE id = %s",
+            (int(body.classId),)
+        )
+ 
+        conn.commit()
+ 
+        return {
+            "status": "ok",
+            "message": "Join request processed successfully"
+        }
+ 
+    except HTTPException:
+        if conn:
+            conn.rollback()
+        raise
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close() 
+
 
 @app.post("/api/force/deleteAllClasses")
 def deleteAllClasses():
@@ -341,6 +519,8 @@ def resetDataBase():
         if conn:
             conn.close()
         raise HTTPException(status_code=500, detail=str(e))
+    
+
 
 
 #-------------------------------------------- login and register

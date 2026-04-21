@@ -48,7 +48,7 @@ export default function Home() {
                     onClick={logout}
                     className="px-4 py-2 rounded-lg text-gray-200 hover:bg-gray-700 transition-colors"
                 >
-                    Logout
+                    Wyloguj
                 </button>
                 </div>
             </div>
